@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Data Scraper</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Bus Data Scraper</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group mb-3">
+                    <label for="baseUrl">Booking URL:</label>
+                    <input type="text" class="form-control" id="baseUrl" placeholder="https://example.com/booking/" required>
+                    <div class="form-text text-muted">This URL will be saved as the booking URL for all buses.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="htmlContent">Paste HTML Content:</label>
+                    <textarea class="form-control" id="htmlContent" rows="10" placeholder="Paste your HTML content here..." required></textarea>
+                </div>
+                <button class="btn btn-primary mt-3" id="scrapeButton" onclick="scrapeData()">
+                    <span class="spinner-border spinner-border-sm d-none" id="loadingSpinner" role="status"></span>
+                    Scrape Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card d-none" id="resultsCard">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Scraped Data</h3>
+                <span class="badge bg-primary" id="resultCount">0 buses found</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Bus Name</th>
+                                <th>Type</th>
+                                <th>Departure</th>
+                                <th>Arrival</th>
+                                <th>Time</th>
+                                <th>Price</th>
+                                <th>Rewards</th>
+                                <th>Booking URL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast for notifications -->
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div class="toast" role="alert" id="notificationToast">
+                <div class="toast-header" id="toastHeader">
+                    <strong class="me-auto" id="toastTitle">Notification</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body" id="toastMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+ Id CommandLine
+  -- -----------
+   1 try { . "c:\Users\Taseer Ullah\AppData\Local\Programs\Microsoft VS Code\resources\app\out\vs\workbench\contrib\terminal\c...
+   2 python -m http.server 8000...
+   3 clear
+   4 pip install flask-cors...
+   5 clear
+   6 python app.py...
+   7 clear
+   8 python -m http.server 8000...
+   9 clear
+  10 python -m http.server 8000...
+  11 pip install mysql-connector-python
+  # python -m pip install mysql-connector-python
+#pip list | findstr mysql-connector-python
+
+  12 scrapy_env\Scripts\activate
+  13 clear
+  #. Modify the app.py files to specify different ports:
+  if __name__ == '__main__':
+    app.run(port=5000)  # This will run on port 5000
+    if __name__ == '__main__':
+    app.run(port=5001)  # This will run on port 5001
+#. (Optional) Use environment variables to specify ports:
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))  # Default to 5000 if PORT is not set
+    app.run(port=port)
+#Run PORT=5000 python app.py
+
+Flask==2.0.1
+Flask-Login==0.5.0
+Flask-SocketIO==5.1.1
+stripe==2.60.0
+pymysql==1.0.2

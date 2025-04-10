@@ -1,0 +1,51 @@
+.card {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+textarea {
+    font-family: monospace;
+    resize: vertical;
+    min-height: 200px;
+}
+
+.toast {
+    min-width: 300px;
+}
+
+.toast.success .toast-header {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.toast.error .toast-header {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.bus-logo {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+}
+
+#resultsCard {
+    margin-top: 2rem;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.badge {
+    font-size: 0.9rem;
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+}

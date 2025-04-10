@@ -1,0 +1,24 @@
+[
+    {
+        "bus_name": "Daewoo Express",
+        "bus_type": "Luxury",
+        "departure": {
+            "city_code": "MTN",
+            "full_name": "Multan"
+        },
+        "arrival": {
+            "city_code": "DGK",
+            "full_name": "Dera Ghazi Khan"
+        },
+        "departure_time": "1:15 PM",
+        "date": "2025-04-10",
+        "price": "Rs 570",
+        "rewards": "57 points",
+        "facility_images": [
+            "https://bkme.s3.me-south-1.amazonaws.com/static/assets/img/transport_facility/V5/free_wifi.png?images=true",
+            "https://bkme.s3.me-south-1.amazonaws.com/static/assets/img/transport_facility/V5/regular_seat.png?images=true"
+        ],
+        "logo_url": "https://bkme.s3.me-south-1.amazonaws.com/static/custom/upload/transport/daewoo-express.jpg",
+        "booking_url": "https://bookme.pk/bus/search-results"
+    }
+]

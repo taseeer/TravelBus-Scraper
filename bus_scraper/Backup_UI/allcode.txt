@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Data Scraper</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="card-title">Bus Data Scraper</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group mb-3">
+                    <label for="baseUrl">Base URL:</label>
+                    <div class="input-group">
+                        <span class="input-group-text">https://</span>
+                        <input type="text" class="form-control" id="baseUrl" placeholder="example.com/booking/">
+                    </div>
+                    <div class="form-text text-muted">This URL will be combined with the scraped booking paths</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="htmlContent">Paste HTML Content:</label>
+                    <textarea class="form-control" id="htmlContent" rows="10" placeholder="Paste your HTML content here..."></textarea>
+                </div>
+                <button class="btn btn-primary mt-3" id="scrapeButton" onclick="scrapeData()">
+                    <span class="spinner-border spinner-border-sm d-none" id="loadingSpinner" role="status"></span>
+                    Scrape Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card d-none" id="resultsCard">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Scraped Data</h3>
+                <span class="badge bg-primary" id="resultCount">0 buses found</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Bus Name</th>
+                                <th>Type</th>
+                                <th>Departure</th>
+                                <th>Arrival</th>
+                                <th>Time</th>
+                                <th>Price</th>
+                                <th>Rewards</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast for notifications -->
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div class="toast" role="alert" id="notificationToast">
+                <div class="toast-header" id="toastHeader">
+                    <strong class="me-auto" id="toastTitle">Notification</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body" id="toastMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
+####### app.py
+from flask import Flask, render_template, request, jsonify
+from scraper import scrape_bus_data
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/scrape', methods=['POST'])
+def scrape():
+    html_content = request.form.get('html_content')
+    base_url = request.form.get('base_url', '').strip()
+    
+    if not html_content:
+        return jsonify({"status": "error", "message": "No HTML content provided"})
+    
+    result = scrape_bus_data(html_content, base_url)
+    return jsonify(result)
+
+if __name__ == '__main__':
+    app.run(debug=True,port=5001)
+    ################################################################
+    scrap.py
+    import re
+import json
+from datetime import datetime
+from database import get_db_connection
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+
+def scrape_bus_data(html_content, base_url=''):
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Extract Departure Date
+        date_element = soup.find('div', class_='text-nowrap small')
+        departure_date = date_element.get_text(strip=True).replace("Departure:", "").strip() if date_element else ""
+
+        # Convert scraped date (19 Feb 2025) to YYYY-MM-DD format
+        if departure_date:
+            try:
+                departure_date = datetime.strptime(departure_date, "%d %b %Y").strftime("%Y-%m-%d")
+            except ValueError:
+                departure_date = ""
+
+        # Find all bus entries
+        bus_entries = soup.find_all('div', class_='my-3 text-reset card detail-card')
+        bus_data = []
+
+        # Connect to MySQL
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        for bus in bus_entries:
+            # Extract Bus Logo
+            logo_img = bus.find('div', class_='col-2 col-lg-3 col-md service-img')
+            logo = logo_img.find('img')['src'] if logo_img and logo_img.find('img') else ""
+
+            # Extract Bus Name & Type
+            bus_name = bus.find('h5', class_='mb-0 font-weight-600').get_text(strip=True) if bus.find('h5', class_='mb-0 font-weight-600') else ""
+            bus_type = bus.find('span', class_='mb-0 font-weight-400 text-gray-500 fs-6 small').get_text(strip=True) if bus.find('span', class_='mb-0 font-weight-400 text-gray-500 fs-6 small') else ""
+
+            # Extract Route Details
+            departure_div = bus.find('div', class_='d-flex justify-content-center col-4 col-lg-3 col-md')
+            departure_city = departure_div.find('h5', class_='mb-0 font-weight-600').get_text(strip=True) if departure_div and departure_div.find('h5') else ""
+            departure_full = departure_div.find('p', class_='mb-0').get_text(strip=True) if departure_div and departure_div.find('p') else ""
+
+            arrival_div = bus.find_all('div', class_='d-flex justify-content-center col-4 col-lg-3 col-md')
+            arrival_div = arrival_div[1] if len(arrival_div) > 1 else None
+            arrival_city = arrival_div.find('h5', class_='mb-0 font-weight-600').get_text(strip=True) if arrival_div and arrival_div.find('h5') else ""
+            arrival_full = arrival_div.find('p', class_='mb-0').get_text(strip=True) if arrival_div and arrival_div.find('p') else ""
+
+            # Extract Departure Time
+            departure_time = bus.find('div', class_='duration').find('h5').get_text(strip=True) if bus.find('div', class_='duration') and bus.find('div', class_='duration').find('h5') else ""
+
+            # Extract Price
+            price_element = bus.find('h5', class_='mx-2 mb-0 font-weight-600 fs-5 me-3')
+            if price_element:
+                price_span = price_element.find_all('span')[-1] if price_element.find_all('span') else price_element
+                price = re.sub(r'[^\d]', '', price_span.get_text(strip=True))
+            else:
+                price = "0"
+
+            # Extract Rewards
+            rewards = bus.find('div', class_='rewards')
+            rewards = rewards.find('span', class_='text-primary').get_text(strip=True) if rewards and rewards.find('span', class_='text-primary') else "0"
+
+            # Extract Facility Images
+            facility_images = []
+            facility_divs = bus.find_all('div', class_='d-flex flex-wrap align-items-center my-1 my-lg-0 facilities me-2')
+            for div in facility_divs:
+                img_tag = div.find('img')
+                if img_tag and 'src' in img_tag.attrs:
+                    facility_images.append(img_tag['src'])
+
+            facility_images_json = json.dumps(facility_images)
+
+            # Extract Booking URL
+            book_button = bus.find('button', class_='btn btn-primary')
+            booking_url = ""
+            if book_button and 'data-bs-target' in book_button.attrs:
+                offcanvas_id = book_button['data-bs-target']
+                offcanvas_div = soup.find('div', id=offcanvas_id.replace("#", ""))
+                if offcanvas_div:
+                    link_tag = offcanvas_div.find('a', href=True)
+                    if link_tag:
+                        booking_path = link_tag['href']
+                        if base_url:
+                            booking_url = urljoin(f'https://{base_url}', booking_path)
+                        else:
+                            booking_url = booking_path
+
+            # Insert into MySQL database
+            query = """INSERT INTO buses (bus_name, bus_type, departure, destination, departure_time, date, 
+                      price, rewards, facility_images, logo_url, booking_url)
+                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+            values = (bus_name, bus_type, departure_full, arrival_full, departure_time, 
+                     departure_date, price, rewards, facility_images_json, logo, booking_url)
+
+            try:
+                cursor.execute(query, values)
+                conn.commit()
+            except Exception as e:
+                return {"status": "error", "message": f"Error inserting data into database: {str(e)}"}
+
+            bus_data.append({
+                "bus_name": bus_name,
+                "bus_type": bus_type,
+                "departure": {"city_code": departure_city, "full_name": departure_full},
+                "arrival": {"city_code": arrival_city, "full_name": arrival_full},
+                "departure_time": departure_time,
+                "date": departure_date,
+                "price": f"Rs {price}",
+                "rewards": f"{rewards} points",
+                "facility_images": facility_images,
+                "logo_url": logo,
+                "booking_url": booking_url
+            })
+
+        conn.close()
+
+        # Save data to JSON file (optional)
+        with open("bus_data.json", "w", encoding="utf-8") as file:
+            json.dump(bus_data, file, indent=4)
+
+        return {"status": "success", "message": "Data scraped and saved successfully", "data": bus_data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+        ################################ js################################
+        function showToast(message, isSuccess = true) {
+    const toast = document.getElementById('notificationToast');
+    const toastInstance = new bootstrap.Toast(toast);
+    const toastHeader = document.getElementById('toastHeader');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastMessage = document.getElementById('toastMessage');
+
+    toast.classList.remove('success', 'error');
+    toast.classList.add(isSuccess ? 'success' : 'error');
+    toastTitle.textContent = isSuccess ? 'Success' : 'Error';
+    toastMessage.textContent = message;
+    
+    toastInstance.show();
+}
+
+function displayResults(data) {
+    const resultsCard = document.getElementById('resultsCard');
+    const resultsTable = document.getElementById('resultsTable');
+    const resultCount = document.getElementById('resultCount');
+
+    // Clear previous results
+    resultsTable.innerHTML = '';
+    
+    // Update count badge
+    resultCount.textContent = `${data.length} buses found`;
+    
+    // Add each bus to the table
+    data.forEach(bus => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                ${bus.logo_url ? `<img src="${bus.logo_url}" alt="logo" class="bus-logo me-2">` : ''}
+                ${bus.bus_name}
+            </td>
+            <td>${bus.bus_type}</td>
+            <td>${bus.departure.full_name}</td>
+            <td>${bus.arrival.full_name}</td>
+            <td>${bus.departure_time}</td>
+            <td>${bus.price}</td>
+            <td>${bus.rewards}</td>
+            <td>
+                ${bus.booking_url ? `<a href="${bus.booking_url}" target="_blank" class="btn btn-sm btn-primary">Book</a>` : ''}
+            </td>
+        `;
+        resultsTable.appendChild(row);
+    });
+
+    // Show results card
+    resultsCard.classList.remove('d-none');
+}
+
+async function scrapeData() {
+    const htmlContent = document.getElementById('htmlContent').value;
+    const baseUrl = document.getElementById('baseUrl').value.trim();
+    const button = document.getElementById('scrapeButton');
+    const spinner = document.getElementById('loadingSpinner');
+    const resultsCard = document.getElementById('resultsCard');
+
+    if (!htmlContent.trim()) {
+        showToast('Please enter HTML content to scrape', false);
+        return;
+    }
+
+    // Show loading state
+    button.disabled = true;
+    spinner.classList.remove('d-none');
+    resultsCard.classList.add('d-none');
+
+    try {
+        const response = await fetch('/scrape', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `html_content=${encodeURIComponent(htmlContent)}&base_url=${encodeURIComponent(baseUrl)}`
+        });
+
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            showToast(result.message, true);
+            if (result.data) {
+                displayResults(result.data);
+            }
+        } else {
+            showToast(result.message, false);
+        }
+    } catch (error) {
+        showToast('An error occurred while scraping data', false);
+    } finally {
+        // Reset loading state
+        button.disabled = false;
+        spinner.classList.add('d-none');
+    }
+}
+########## css #################
+.card {
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+textarea {
+    font-family: monospace;
+    resize: vertical;
+    min-height: 200px;
+}
+
+.toast {
+    min-width: 300px;
+}
+
+.toast.success .toast-header {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.toast.error .toast-header {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.bus-logo {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+}
+
+#resultsCard {
+    margin-top: 2rem;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.badge {
+    font-size: 0.9rem;
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
