@@ -6,3 +6,4 @@ PyMySQL==1.0.2
 Werkzeug==2.0.3
 python-socketio==5.4.0
 python-engineio==4.2.1
+beautifulsoup4==4.9.3
