@@ -1,51 +1,271 @@
+/* Enhanced Animations and Styles */
+:root {
+    --primary-color: #4f46e5;
+    --secondary-color: #7c3aed;
+    --success-color: #059669;
+    --danger-color: #dc2626;
+    --warning-color: #d97706;
+    --info-color: #2563eb;
+    --dark-color: #1f2937;
+    --light-color: #f8fafc;
+}
+
+/* Loading animations */
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 40px, 0);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale3d(0.3, 0.3, 0.3);
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Enhanced card animations */
 .card {
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    animation: bounceIn 0.6s ease-out;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-textarea {
-    font-family: monospace;
-    resize: vertical;
-    min-height: 200px;
+.card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12);
 }
 
-.toast {
-    min-width: 300px;
+/* Table row animations */
+.table tbody tr {
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
 }
 
-.toast.success .toast-header {
-    background-color: #d4edda;
-    color: #155724;
+.table tbody tr:nth-child(even) {
+    animation-delay: 0.1s;
 }
 
-.toast.error .toast-header {
-    background-color: #f8d7da;
-    color: #721c24;
+.table tbody tr:nth-child(odd) {
+    animation-delay: 0.2s;
 }
 
-.bus-logo {
-    height: 30px;
-    width: auto;
-    object-fit: contain;
+/* Button hover effects */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-#resultsCard {
-    margin-top: 2rem;
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
 }
 
-.table {
-    margin-bottom: 0;
+.btn:hover::before {
+    left: 100%;
 }
 
+/* Enhanced loading spinner */
+.loading-spinner {
+    animation: spin 1s linear infinite;
+    filter: drop-shadow(0 0 3px rgba(255,255,255,0.8));
+}
+
+/* Form control focus effects */
+.form-control:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+}
+
+/* Badge animations */
 .badge {
-    font-size: 0.9rem;
+    animation: zoomIn 0.5s ease-out;
+    transition: all 0.3s ease;
 }
 
-.input-group-text {
-    background-color: #f8f9fa;
-    color: #6c757d;
+.badge:hover {
+    transform: scale(1.1);
 }
 
-.form-text {
-    font-size: 0.875rem;
-    color: #6c757d;
+/* Logo hover effect */
+.bus-logo {
+    transition: all 0.3s ease;
+    filter: grayscale(0.2);
+}
+
+.bus-logo:hover {
+    filter: grayscale(0);
+    transform: scale(1.15) rotate(5deg);
+}
+
+/* Toast enhancements */
+.toast {
+    backdrop-filter: blur(10px);
+    animation: bounceIn 0.5s ease-out;
+}
+
+/* Responsive animations */
+@media (max-width: 768px) {
+    .card {
+        animation: fadeInUp 0.6s ease-out;
+        margin: 0 0.5rem;
+    }
+    
+    .table tbody tr {
+        animation-duration: 0.3s;
+    }
+}
+
+/* Stats counter animation */
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.8); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.stat-value {
+    animation: countUp 0.8s ease-out;
+    animation-fill-mode: both;
+}
+
+.stat-item:nth-child(1) .stat-value { animation-delay: 0.1s; }
+.stat-item:nth-child(2) .stat-value { animation-delay: 0.2s; }
+.stat-item:nth-child(3) .stat-value { animation-delay: 0.3s; }
+
+/* Enhanced hover effects for table rows */
+.table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(124, 58, 237, 0.05));
+    transform: scale(1.005);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Price highlight animation */
+.price-info {
+    transition: all 0.3s ease;
+}
+
+.price-info:hover {
+    transform: scale(1.05);
+    color: var(--success-color) !important;
+}
+
+/* Route info styling */
+.route-info {
+    transition: all 0.3s ease;
+}
+
+.route-info:hover {
+    transform: translateX(5px);
+}
+
+/* Action buttons enhancement */
+.action-buttons .btn {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+.action-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
+}
+
+/* Textarea enhancements */
+textarea.form-control {
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+textarea.form-control:focus {
+    background: linear-gradient(135deg, #ffffff, #f0f9ff);
+}
+
+/* Header section animations */
+.header-section {
+    animation: fadeInUp 1s ease-out;
+}
+
+.feature-list li {
+    animation: fadeInUp 0.6s ease-out;
+    animation-fill-mode: both;
+}
+
+.feature-list li:nth-child(1) { animation-delay: 0.1s; }
+.feature-list li:nth-child(2) { animation-delay: 0.2s; }
+.feature-list li:nth-child(3) { animation-delay: 0.3s; }
+
+/* Skeleton loading for empty states */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 576px) {
+    .stats-container {
+        gap: 0.5rem;
+    }
+    
+    .stat-item {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .header-title {
+        font-size: 1.75rem;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
 }
