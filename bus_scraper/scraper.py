@@ -1,120 +1,184 @@
 import re
 import json
 from datetime import datetime
-from database import get_db_connection
 from bs4 import BeautifulSoup
+import pymysql
+from pymysql import Error
+
+def get_db_connection():
+    try:
+        connection = pymysql.connect(
+            host='localhost',
+            database='travelbus',
+            user='root',
+            password='',
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        return connection
+    except Error as e:
+        print(f"Error connecting to MySQL database: {e}")
+        return None
 
 def scrape_bus_data(html_content, base_url=''):
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
-        
-        # Extract Departure Date
-        date_element = soup.find('div', class_='text-nowrap small')
-        departure_date = date_element.get_text(strip=True).replace("Departure:", "").strip() if date_element else ""
-
-        # Convert scraped date (19 Feb 2025) to YYYY-MM-DD format
-        if departure_date:
-            try:
-                departure_date = datetime.strptime(departure_date, "%d %b %Y").strftime("%Y-%m-%d")
-            except ValueError:
-                departure_date = ""
-
-        # Find all bus entries
-        bus_entries = soup.find_all('div', class_='my-3 text-reset card detail-card')
         bus_data = []
+        conn = None
+        cursor = None
 
-        # Connect to MySQL
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        try:
+            conn = get_db_connection()
+            if conn:
+                cursor = conn.cursor()
+        except Exception as db_error:
+            print(f"Database connection failed, continuing without DB: {db_error}")
 
-        for bus in bus_entries:
-            # Extract Bus Logo
-            logo_img = bus.find('div', class_='col-2 col-lg-3 col-md service-img')
-            logo = logo_img.find('img')['src'] if logo_img and logo_img.find('img') else ""
+        # Extract Departure Date
+        date_div = soup.find('div', class_='text-nowrap small')
+        departure_date = ""
+        if date_div:
+            date_text = date_div.get_text(strip=True)
+            date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', date_text)
+            if date_match:
+                try:
+                    departure_date = datetime.strptime(date_match.group(1), "%d %b %Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
 
-            # Extract Bus Name & Type
-            bus_name_element = bus.find('h5', class_='mb-0 font-weight-600')
-            bus_name = bus_name_element.find(text=True, recursive=False).strip() if bus_name_element else ""
-            bus_type = bus.find('span', class_='mb-0 font-weight-400 text-gray-500 fs-6 small').get_text(strip=True) if bus.find('span', class_='mb-0 font-weight-400 text-gray-500 fs-6 small') else ""
-
-            # Extract Route Details
-            departure_div = bus.find('div', class_='d-flex justify-content-center col-4 col-lg-3 col-md')
-            departure_city = departure_div.find('h5', class_='mb-0 font-weight-600').get_text(strip=True) if departure_div and departure_div.find('h5') else ""
-            departure_full = departure_div.find('p', class_='mb-0').get_text(strip=True) if departure_div and departure_div.find('p') else ""
-
-            arrival_divs = bus.find_all('div', class_='d-flex justify-content-center col-4 col-lg-3 col-md')
-            arrival_div = arrival_divs[1] if len(arrival_divs) > 1 else None
-            arrival_city = arrival_div.find('h5', class_='mb-0 font-weight-600').get_text(strip=True) if arrival_div and arrival_div.find('h5') else ""
-            arrival_full = arrival_div.find('p', class_='mb-0').get_text(strip=True) if arrival_div and arrival_div.find('p') else ""
-
-            # Extract Departure Time
-            departure_time_div = bus.find('div', class_='duration')
-            departure_time = departure_time_div.find('h5').get_text(strip=True) if departure_time_div and departure_time_div.find('h5') else ""
-
-            # Extract Price - Fixed implementation
-            price_element = bus.find('h5', class_=lambda x: x and 'font-weight-600' in x and 'fs-5' in x)
-            if price_element:
-                price_span =price_element.find_all('span')[-1] if price_element.find_all('span') else price_element
-                
-                price = re.sub(r'[^\d]', '', price_span.get_text(strip=True))
-                if not price:  # If no digits found, set to 0
-                    price = "0"
-            else:
-                price = "0"
-      
+        # Find all bus cards
+        bus_cards = soup.find_all('div', class_='detail-card')
         
-            # Extract Rewards
-            rewards_div = bus.find('div', class_='rewards')
-            rewards = rewards_div.find('span', class_='text-primary').get_text(strip=True) if rewards_div and rewards_div.find('span', class_='text-primary') else "0"
-
-            # Extract Facility Images - Fixed implementation
-            facility_images = []
-            facility_divs = bus.find_all('div', class_=lambda x: x and 'd-flex' in x and 'flex-wrap' in x and 'align-items-center' in x and 'facilities' in x)
-            for div in facility_divs:
-                img_tags = div.find_all('img')
-                for img in img_tags:
-                    if img and 'src' in img.attrs:
-                        facility_images.append(img['src'])
-
-            facility_images_json = json.dumps(facility_images)
-
-            # Use the base_url provided by the user as the booking URL
-            booking_url = base_url
-
-            # Insert into MySQL database
-            query = """INSERT INTO buses (bus_name, bus_type, departure, destination, departure_time, date, 
-                      price, rewards, facility_images, logo_url, booking_url)
-                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-            values = (bus_name, bus_type, departure_full, arrival_full, departure_time, 
-                     departure_date, price, rewards, facility_images_json, logo, booking_url)
-
+        for card in bus_cards:
             try:
-                cursor.execute(query, values)
-                conn.commit()
+                # Bus Name and Type
+                name_div = card.find('h5', class_='font-weight-600')
+                bus_name = ""
+                bus_type = ""
+                if name_div:
+                    name_parts = [part.strip() for part in name_div.get_text().split('\n') if part.strip()]
+                    if name_parts:
+                        bus_name = name_parts[0]
+                        if len(name_parts) > 1:
+                            bus_type = name_parts[1]
+
+                # Logo URL
+                logo_img = card.find('img', class_='img-fluid')
+                logo_url = logo_img['src'] if logo_img and logo_img.get('src') else ""
+
+                # Departure Information
+                departure_div = card.find('div', class_='departure')
+                departure_city = ""
+                departure_full = ""
+                if departure_div:
+                    departure_city = departure_div.find('h5').get_text(strip=True) if departure_div.find('h5') else ""
+                    departure_full = departure_div.find('p').get_text(strip=True) if departure_div.find('p') else ""
+
+                # Arrival Information
+                arrival_div = card.find('div', class_='arrival')
+                arrival_city = ""
+                arrival_full = ""
+                if arrival_div:
+                    arrival_city = arrival_div.find('h5').get_text(strip=True) if arrival_div.find('h5') else ""
+                    arrival_full = arrival_div.find('p').get_text(strip=True) if arrival_div.find('p') else ""
+
+                # Departure Time
+                time_div = card.find('div', class_='duration')
+                departure_time = ""
+                if time_div:
+                    departure_time = time_div.find('h5').get_text(strip=True) if time_div.find('h5') else ""
+
+                # Price
+                price_h5 = card.find('h5', class_='fs-5')
+                price = "0"
+                if price_h5:
+                    price_span = price_h5.find('span')
+                    if price_span:
+                        price = re.sub(r'[^\d]', '', price_span.get_text(strip=True)) or "0"
+
+                # Rewards Points
+                rewards_div = card.find('div', class_='rewards')
+                rewards = "0"
+                if rewards_div:
+                    rewards_span = rewards_div.find('span', class_='text-primary')
+                    if rewards_span:
+                        rewards = re.sub(r'[^\d]', '', rewards_span.get_text(strip=True)) or "0"
+
+                # Facilities
+                facility_images = []
+                facility_divs = card.find_all('div', class_='facilities')
+                for div in facility_divs:
+                    imgs = div.find_all('img')
+                    for img in imgs:
+                        if img.get('src'):
+                            facility_images.append(img['src'])
+                facility_images_json = json.dumps(facility_images)
+
+                # Booking URL
+                book_button = card.find('button', class_='btn-primary')
+                booking_url = base_url if book_button else ""
+
+                # Create data structure for frontend (with nested objects)
+                frontend_data = {
+                    "bus_name": bus_name,
+                    "bus_type": bus_type,
+                    "departure": {
+                        "city_code": departure_city,
+                        "full_name": departure_full
+                    },
+                    "arrival": {
+                        "city_code": arrival_city,
+                        "full_name": arrival_full
+                    },
+                    "departure_time": departure_time,
+                    "date": departure_date,
+                    "price": f"Rs {price}",
+                    "rewards": f"{rewards} points",
+                    "facility_images": facility_images,  # Array for frontend
+                    "logo_url": logo_url,
+                    "booking_url": booking_url
+                }
+                bus_data.append(frontend_data)
+
+                # Save to database if connection exists
+                if conn and cursor:
+                    try:
+                        sql = """INSERT INTO buses (
+                            bus_name, bus_type, departure, destination, 
+                            departure_time, date, price, rewards, 
+                            facility_images, logo_url, booking_url
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                        
+                        cursor.execute(sql, (
+                            bus_name, bus_type, departure_full, arrival_full,
+                            departure_time, departure_date, price, rewards,
+                            facility_images_json, logo_url, booking_url
+                        ))
+                        conn.commit()
+                    except Exception as db_insert_error:
+                        print(f"Failed to insert bus data: {db_insert_error}")
+                        conn.rollback()
+
             except Exception as e:
-                conn.close()
-                return {"status": "error", "message": f"Error inserting data into database: {str(e)}"}
+                print(f"Error processing bus card: {str(e)}")
+                continue
 
-            bus_data.append({
-                "bus_name": bus_name,
-                "bus_type": bus_type,
-                "departure": {"city_code": departure_city, "full_name": departure_full},
-                "arrival": {"city_code": arrival_city, "full_name": arrival_full},
-                "departure_time": departure_time,
-                "date": departure_date,
-                "price": f"Rs {price}",
-                "rewards": f"{rewards} points",
-                "facility_images": facility_images,
-                "logo_url": logo,
-                "booking_url": booking_url
-            })
+        # Close database connection if it exists
+        if conn:
+            cursor.close()
+            conn.close()
 
-        conn.close()
+        return {
+            "status": "success",
+            "message": f"Successfully scraped {len(bus_data)} buses",
+            "data": bus_data
+        }
 
-        # Save data to JSON file (optional)
-        with open("bus_data.json", "w", encoding="utf-8") as file:
-            json.dump(bus_data, file, indent=4, ensure_ascii=False)
-
-        return {"status": "success", "message": "Data scraped and saved successfully", "data": bus_data}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        # Ensure database connection is closed even if error occurs
+        if 'conn' in locals() and conn:
+            conn.close()
+        return {
+            "status": "error",
+            "message": f"Scraping error: {str(e)}"
+        }
